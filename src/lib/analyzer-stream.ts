@@ -6,6 +6,8 @@ interface StreamEvent {
   phase: "connecting" | "generating" | "saving" | "done" | "error"
   progress: number
   message: string
+  /** 流式输出的部分文本内容 */
+  partialText?: string
   result?: {
     summary: string
     overview: string
@@ -134,11 +136,13 @@ ${readmePreview}
               fullText += content
               tokenCount++
               const progress = Math.min(90, 15 + Math.round((tokenCount / estimatedTokens) * 75))
-              if (tokenCount % 50 === 0) {
+              // Send partial text every 10 tokens for smooth streaming display
+              if (tokenCount % 10 === 0) {
                 onProgress({
                   phase: "generating",
                   progress,
                   message: `正在生成分析报告... (${tokenCount} tokens)`,
+                  partialText: fullText,
                 })
               }
             }

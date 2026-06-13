@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { Heart, Sparkles, CheckCircle, XCircle, Loader2 } from "lucide-react"
@@ -58,29 +59,37 @@ export function AnalyzeButton({
   projectId: string
   hasReport: boolean
 }) {
+  const router = useRouter()
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">(
     hasReport ? "success" : "idle"
   )
   const [progress, setProgress] = useState(0)
   const [phaseMsg, setPhaseMsg] = useState("")
+  const [partialText, setPartialText] = useState("")
   const [errorMsg, setErrorMsg] = useState("")
-  const eventSourceRef = useRef<EventSource | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
-  // cleanup on unmount
   useEffect(() => {
     return () => {
-      eventSourceRef.current?.close()
+      // cleanup on unmount
     }
   }, [])
 
+  // Auto-scroll streaming text
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+  }, [partialText])
+
   const handleAnalyze = () => {
-    eventSourceRef.current?.close()
     setStatus("loading")
     setProgress(0)
+    setPartialText("")
     setErrorMsg("")
 
     const es = new EventSource(`/api/projects/${projectId}/analyze/stream`)
-    eventSourceRef.current = es
+    let lastText = ""
 
     es.onmessage = (event) => {
       const data = JSON.parse(event.data)
@@ -95,9 +104,21 @@ export function AnalyzeButton({
       setProgress(data.progress)
       setPhaseMsg(data.message)
 
+      if (data.partialText) {
+        const text = data.partialText
+        // Try to extract readable content from the JSON stream
+        const cleaned = text
+          .replace(/^```json\s*/g, "")
+          .replace(/```/g, "")
+        lastText = cleaned
+        setPartialText(cleaned)
+      }
+
       if (data.phase === "done") {
         setStatus("success")
         es.close()
+        // Auto-refresh to show the new report
+        setTimeout(() => router.refresh(), 500)
       }
     }
 
@@ -115,7 +136,7 @@ export function AnalyzeButton({
       <div className="flex items-center gap-2">
         <span className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800">
           <CheckCircle className="h-4 w-4" />
-          分析完成
+          分析完成，报告已加载
         </span>
         <Button
           variant="outline"
@@ -132,12 +153,10 @@ export function AnalyzeButton({
   if (status === "error") {
     return (
       <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400">
-            <XCircle className="h-4 w-4" />
-            {errorMsg}
-          </span>
-        </div>
+        <span className="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400">
+          <XCircle className="h-4 w-4" />
+          {errorMsg}
+        </span>
         <Button size="sm" onClick={() => handleAnalyze()}>
           <Sparkles className="mr-1.5 h-4 w-4" />
           重试
@@ -148,18 +167,32 @@ export function AnalyzeButton({
 
   if (status === "loading") {
     return (
-      <div className="flex flex-col gap-2 min-w-[300px]">
+      <div className="flex flex-col gap-3 w-full max-w-2xl">
+        {/* Progress bar */}
         <div className="flex items-center gap-3">
-          <Loader2 className="h-4 w-4 animate-spin text-primary" />
-          <span className="text-sm font-medium">{phaseMsg || "正在分析..."}</span>
-          <span className="text-sm text-muted-foreground ml-auto">{progress}%</span>
+          <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+          <span className="text-sm font-medium">{phaseMsg}</span>
+          <span className="text-sm text-muted-foreground ml-auto tabular-nums">{progress}%</span>
         </div>
         <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
           <div
-            className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
+            className="h-full rounded-full bg-gradient-to-r from-primary/60 to-primary transition-all duration-300 ease-out"
             style={{ width: `${progress}%` }}
           />
         </div>
+
+        {/* Streaming text preview */}
+        {partialText && (
+          <div
+            ref={scrollRef}
+            className="max-h-64 overflow-y-auto rounded-lg border bg-muted/30 p-4"
+          >
+            <pre className="text-sm whitespace-pre-wrap font-mono text-muted-foreground leading-relaxed">
+              {partialText}
+            </pre>
+            <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-0.5 align-middle" />
+          </div>
+        )}
       </div>
     )
   }
