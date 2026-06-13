@@ -1,0 +1,26 @@
+name: Daily AI Project Refresh
+
+on:
+  schedule:
+    # 每天北京时间早上 8:00 (UTC 0:00)
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+    # 允许手动触发
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Refresh API
+        run: |
+          echo "🔄 开始刷新 AI 项目数据..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" https://github-ai-insight.vercel.app/api/cron/refresh)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response: $BODY"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ 刷新失败"
+            exit 1
+          fi
+          echo "✅ 刷新成功"
