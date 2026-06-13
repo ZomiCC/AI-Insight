@@ -1,6 +1,10 @@
 name: Daily AI Project Refresh
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/daily-refresh.yml"
   schedule:
     # 每天北京时间早上 8:00 (UTC 0:00)
     - cron: "0 0 * * *"
