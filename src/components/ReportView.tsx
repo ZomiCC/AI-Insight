@@ -3,6 +3,7 @@
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { Badge } from "@/components/ui/badge"
+import { MermaidRenderer } from "./MermaidRenderer"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { formatDate } from "@/lib/utils"
@@ -69,21 +70,13 @@ export function ReportView({ report, projectName }: ReportViewProps) {
 
       {/* Overview */}
       <SectionCard icon={<Target className="h-5 w-5" />} title="项目定位与竞品分析">
-        <div className="prose prose-neutral dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-li:text-muted-foreground prose-strong:text-foreground prose-a:text-primary">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {report.overview}
-          </ReactMarkdown>
-        </div>
+        <MarkdownContent content={report.overview} />
       </SectionCard>
 
       {/* Architecture */}
       {report.architecture && (
         <SectionCard icon={<Layers className="h-5 w-5" />} title="架构深度解析">
-          <div className="prose prose-neutral dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-li:text-muted-foreground prose-strong:text-foreground prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {report.architecture}
-            </ReactMarkdown>
-          </div>
+          <MarkdownContent content={report.architecture} />
         </SectionCard>
       )}
 
@@ -107,13 +100,48 @@ export function ReportView({ report, projectName }: ReportViewProps) {
       {/* Learning Value */}
       {report.learningValue && (
         <SectionCard icon={<GraduationCap className="h-5 w-5" />} title="学习指南">
-          <div className="prose prose-neutral dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-li:text-muted-foreground prose-strong:text-foreground">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {report.learningValue}
-            </ReactMarkdown>
-          </div>
+          <MarkdownContent content={report.learningValue} />
         </SectionCard>
       )}
+    </div>
+  )
+}
+
+// Shared markdown renderer: intercepts ```mermaid blocks → rendered diagrams
+function MarkdownContent({ content }: { content: string }) {
+  return (
+    <div className="prose prose-neutral dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-li:text-muted-foreground prose-strong:text-foreground prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          code({ className, children, ...props }) {
+            const match = /language-(\w+)/.exec(className || "")
+            const codeStr = String(children).replace(/\n$/, "")
+
+            if (match && match[1] === "mermaid") {
+              return <MermaidRenderer chart={codeStr} />
+            }
+
+            if (!match) {
+              return (
+                <code className={className} {...props}>
+                  {children}
+                </code>
+              )
+            }
+
+            return (
+              <pre className="bg-muted p-4 rounded-lg overflow-x-auto text-sm">
+                <code className={className} {...props}>
+                  {children}
+                </code>
+              </pre>
+            )
+          },
+        }}
+      >
+        {content}
+      </ReactMarkdown>
     </div>
   )
 }
