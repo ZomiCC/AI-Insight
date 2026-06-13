@@ -158,7 +158,7 @@ async function ProjectDetail({ id }: { id: string }) {
             <p className="text-muted-foreground mb-4">
               点击下方按钮让 AI 分析这个项目
             </p>
-            <AnalyzeButton projectId={id} />
+            <AnalyzeButton projectId={id} hasReport={reports.length > 0} />
           </CardContent>
         </Card>
       )}

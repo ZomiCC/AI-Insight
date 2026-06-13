@@ -3,6 +3,14 @@
   "installCommand": "npm install --legacy-peer-deps",
   "framework": "nextjs",
   "outputDirectory": ".next",
+  "functions": {
+    "src/app/api/projects/[id]/analyze/stream/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/projects/[id]/analyze/route.ts": {
+      "maxDuration": 60
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/refresh",
