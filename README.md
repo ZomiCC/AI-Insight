@@ -8,9 +8,10 @@
 
 - 🔍 **热门项目追踪**：按话题（LLM、Agent、RAG、Stable Diffusion …）自动发现 GitHub 高星 AI 项目
 - 🤖 **AI 深度分析**：DeepSeek 解读 README，生成结构化中文报告（流式输出，实时可见进度）
+- 🔑 **自带 Key，即配即用**：每个用户在「设置」页配置自己的 DeepSeek API Key（AES-256-GCM 加密存储，可随时修改/删除），无需项目方内置 Key
 - ⭐ **收藏管理**：登录后可收藏感兴趣的项目
 - 📊 **多维筛选**：按语言、难度、关键词、Star 数过滤
-- 🔁 **每日刷新**：Vercel Cron / GitHub Actions 每天自动发现并分析新项目
+- 🔁 **每日刷新**：Vercel Cron / GitHub Actions 每天自动发现新项目（分析由用户用各自 Key 手动触发）
 
 ## 技术栈
 
