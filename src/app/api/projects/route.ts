@@ -2,6 +2,7 @@ import { NextRequest } from "next/server"
 import { prisma } from "@/lib/db"
 import { discoverAIProjects, getRepoReadme, projectDataFromRepo } from "@/lib/github"
 import { requireUserId } from "@/lib/auth"
+import { getUserDiscoverKeywords } from "@/lib/userSettings"
 import type { PaginatedResponse, ProjectListItem } from "@/types"
 
 export async function GET(request: NextRequest) {
@@ -104,8 +105,9 @@ export async function POST(request: NextRequest) {
   const { action } = await request.json()
 
   if (action === "discover") {
-    // Trigger project discovery
-    const repos = await discoverAIProjects(3)
+    // Trigger project discovery — respect the user's custom keywords.
+    const keywords = await getUserDiscoverKeywords(userId)
+    const repos = await discoverAIProjects(keywords, 3)
     let added = 0
 
     for (const repo of repos) {

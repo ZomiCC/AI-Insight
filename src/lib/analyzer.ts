@@ -73,7 +73,8 @@ function safeParseTopics(topics: string | null | undefined): string[] {
 export async function analyzeProject(
   projectId: string,
   userId: string,
-  apiKey: string | null
+  apiKey: string | null,
+  systemPrompt: string = ANALYSIS_SYSTEM_PROMPT
 ): Promise<AnalysisResult> {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
@@ -124,7 +125,7 @@ export async function analyzeProject(
   const prompt = buildAnalysisPrompt(project)
   let text = ""
   try {
-    text = await callDeepSeek(ANALYSIS_SYSTEM_PROMPT, prompt, apiKey, 8192)
+    text = await callDeepSeek(systemPrompt, prompt, apiKey, 8192)
   } catch (e) {
     console.error("DeepSeek API call failed:", e)
     const fallback: AnalysisResult = {

@@ -19,7 +19,7 @@ async function main() {
 
   console.log("🔍 正在从 GitHub 发现热门 AI 项目...\n")
 
-  const repos = await discoverAIProjects(3)
+  const repos = await discoverAIProjects(undefined, 3)
 
   let added = 0
   let skipped = 0

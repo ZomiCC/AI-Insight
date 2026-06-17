@@ -1,6 +1,6 @@
 import { analyzeProjectStream } from "@/lib/analyzer-stream"
 import { requireUserId } from "@/lib/auth"
-import { getUserApiKey } from "@/lib/userSettings"
+import { getUserApiKey, getEffectiveSystemPrompt } from "@/lib/userSettings"
 
 export const dynamic = "force-dynamic"
 
@@ -16,6 +16,7 @@ export async function GET(
 
   const { id } = await params
   const apiKey = await getUserApiKey(userId)
+  const systemPrompt = await getEffectiveSystemPrompt(userId)
 
   const encoder = new TextEncoder()
 
@@ -26,7 +27,7 @@ export async function GET(
       }
 
       try {
-        await analyzeProjectStream(id, userId, apiKey, (event) => {
+        await analyzeProjectStream(id, userId, apiKey, systemPrompt, (event) => {
           send(event)
         })
       } catch {

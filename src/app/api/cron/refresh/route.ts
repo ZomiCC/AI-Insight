@@ -36,7 +36,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const repos = await discoverAIProjects(3)
+    // Cron has no user context → use the built-in default topics.
+    const repos = await discoverAIProjects(undefined, 3)
 
     for (const repo of repos) {
       const existing = await prisma.project.findUnique({

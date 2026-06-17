@@ -1,5 +1,5 @@
 import { prisma } from "./db"
-import { buildAnalysisPrompt, ANALYSIS_SYSTEM_PROMPT } from "./prompt"
+import { buildAnalysisPrompt } from "./prompt"
 
 const DEEPSEEK_API = "https://api.deepseek.com/chat/completions"
 
@@ -23,6 +23,7 @@ export async function analyzeProjectStream(
   projectId: string,
   userId: string,
   apiKey: string | null,
+  systemPrompt: string,
   onProgress: (event: StreamEvent) => void
 ): Promise<void> {
   const project = await prisma.project.findUnique({
@@ -43,8 +44,6 @@ export async function analyzeProjectStream(
   onProgress({ phase: "connecting", progress: 5, message: "正在准备分析数据..." })
 
   const userPrompt = buildAnalysisPrompt(project)
-
-  const systemPrompt = ANALYSIS_SYSTEM_PROMPT
 
   onProgress({ phase: "connecting", progress: 10, message: "正在连接 DeepSeek..." })
 

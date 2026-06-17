@@ -71,7 +71,7 @@ export async function getRepoReadme(
   return ""
 }
 
-const AI_TOPICS = [
+export const DEFAULT_AI_TOPICS = [
   "artificial-intelligence",
   "machine-learning",
   "deep-learning",
@@ -116,13 +116,22 @@ export function projectDataFromRepo(repo: GitHubRepo) {
   }
 }
 
+/**
+ * Discover trending AI repos by searching GitHub topics.
+ *
+ * @param keywords Optional list of GitHub topics to search. When omitted or
+ *   empty, falls back to {@link DEFAULT_AI_TOPICS}. Users can override this
+ *   with their own keyword list (see lib/userSettings.ts).
+ */
 export async function discoverAIProjects(
+  keywords?: string[] | null,
   topicCount = 5
 ): Promise<GitHubRepo[]> {
   const allRepos: GitHubRepo[] = []
   const seen = new Set<number>()
 
-  for (const topic of AI_TOPICS.slice(0, topicCount)) {
+  const topics = keywords && keywords.length > 0 ? keywords : DEFAULT_AI_TOPICS
+  for (const topic of topics.slice(0, topicCount)) {
     try {
       const result = await searchReposByTopic(topic, 1, 10)
       for (const repo of result.items) {

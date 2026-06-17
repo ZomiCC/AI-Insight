@@ -20,6 +20,12 @@ model User {
   // AES-256-GCM ciphertext of the user-configured DeepSeek API key (see lib/crypto.ts).
   // null until the user configures one on /dashboard/settings.
   deepseekApiKey String?
+  // 用户自定义的发现关键词（JSON 字符串数组，如 ["llm","agent"]）。
+  // null 时回落到内置 AI_TOPICS。控制「发现项目」时搜索哪些 GitHub topic。
+  discoverKeywords String?
+  // 用户自定义的分析提示词（明文）。null 时仅用内置系统提示词。
+  // 分析时会拼接到 ANALYSIS_SYSTEM_PROMPT 之后。
+  customPrompt String?
   createdAt     DateTime  @default(now())
 }
 

@@ -1,6 +1,6 @@
 import { analyzeProject } from "@/lib/analyzer"
 import { requireUserId } from "@/lib/auth"
-import { getUserApiKey } from "@/lib/userSettings"
+import { getUserApiKey, getEffectiveSystemPrompt } from "@/lib/userSettings"
 
 export async function POST(
   _request: Request,
@@ -14,9 +14,10 @@ export async function POST(
 
   const { id } = await params
   const apiKey = await getUserApiKey(userId)
+  const systemPrompt = await getEffectiveSystemPrompt(userId)
 
   try {
-    const report = await analyzeProject(id, userId, apiKey)
+    const report = await analyzeProject(id, userId, apiKey, systemPrompt)
     return Response.json({ success: true, report })
   } catch (error) {
     console.error("Analysis failed:", error)
