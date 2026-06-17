@@ -49,9 +49,6 @@ next-env.d.ts
 auth
 auth-wal
 
-# temp
-C:/*
-
 # ide
 .idea/
 .vscode/

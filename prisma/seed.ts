@@ -9,7 +9,7 @@
 import "dotenv/config"
 import { PrismaClient } from "../src/generated/prisma/client"
 import { PrismaLibSql } from "@prisma/adapter-libsql"
-import { discoverAIProjects, getRepoReadme } from "../src/lib/github"
+import { discoverAIProjects, getRepoReadme, projectDataFromRepo } from "../src/lib/github"
 
 async function main() {
   const adapter = new PrismaLibSql({
@@ -48,21 +48,7 @@ async function main() {
     }
 
     await prisma.project.create({
-      data: {
-        githubId: repo.id,
-        name: repo.name,
-        fullName: repo.full_name,
-        description: repo.description,
-        stars: repo.stargazers_count,
-        forks: repo.forks_count,
-        language: repo.language,
-        topics: JSON.stringify(repo.topics || []),
-        license: repo.license?.spdx_id ?? null,
-        homepage: repo.homepage,
-        readme,
-        defaultBranch: repo.default_branch,
-        lastPushedAt: repo.pushed_at ? new Date(repo.pushed_at) : null,
-      },
+      data: { ...projectDataFromRepo(repo), readme },
     })
 
     added++

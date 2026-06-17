@@ -28,3 +28,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/login",
   },
 })
+
+/**
+ * Returns the authenticated user id, or null if not logged in.
+ * Used as a guard at the top of API routes / server actions that act on
+ * behalf of a user (triggering DeepSeek analysis, mutating favorites, etc.).
+ */
+export async function requireUserId(): Promise<string | null> {
+  const session = await auth()
+  return session?.user?.id ?? null
+}

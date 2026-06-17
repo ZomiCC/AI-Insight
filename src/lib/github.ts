@@ -14,22 +14,6 @@ function getHeaders(): HeadersInit {
   return headers
 }
 
-export async function searchAIRepos(
-  page = 1,
-  perPage = 30
-): Promise<GitHubSearchResponse> {
-  const query = encodeURIComponent(
-    "topic:artificial-intelligence topic:machine-learning stars:>500"
-  )
-  const url = `${GITHUB_API}/search/repositories?q=${query}&sort=stars&order=desc&page=${page}&per_page=${perPage}`
-
-  const res = await fetch(url, { headers: getHeaders() })
-  if (!res.ok) {
-    throw new Error(`GitHub search failed: ${res.status} ${res.statusText}`)
-  }
-  return res.json()
-}
-
 export async function searchReposByTopic(
   topic: string,
   page = 1,
@@ -110,13 +94,35 @@ const AI_TOPICS = [
   "embedding",
 ]
 
+/**
+ * Map a raw GitHub repo to the fields stored on our Project model (without README,
+ * which is fetched separately and may be null). Centralizing this keeps the 4
+ * import paths (cron, API, server action, seed) in sync.
+ */
+export function projectDataFromRepo(repo: GitHubRepo) {
+  return {
+    githubId: repo.id,
+    name: repo.name,
+    fullName: repo.full_name,
+    description: repo.description,
+    stars: repo.stargazers_count,
+    forks: repo.forks_count,
+    language: repo.language,
+    topics: JSON.stringify(repo.topics || []),
+    license: repo.license?.spdx_id ?? null,
+    homepage: repo.homepage,
+    defaultBranch: repo.default_branch,
+    lastPushedAt: repo.pushed_at ? new Date(repo.pushed_at) : null,
+  }
+}
+
 export async function discoverAIProjects(
-  pages = 3
+  topicCount = 5
 ): Promise<GitHubRepo[]> {
   const allRepos: GitHubRepo[] = []
   const seen = new Set<number>()
 
-  for (const topic of AI_TOPICS.slice(0, 5)) {
+  for (const topic of AI_TOPICS.slice(0, topicCount)) {
     try {
       const result = await searchReposByTopic(topic, 1, 10)
       for (const repo of result.items) {

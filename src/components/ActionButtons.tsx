@@ -89,7 +89,6 @@ export function AnalyzeButton({
     setErrorMsg("")
 
     const es = new EventSource(`/api/projects/${projectId}/analyze/stream`)
-    let lastText = ""
 
     es.onmessage = (event) => {
       const data = JSON.parse(event.data)
@@ -110,7 +109,6 @@ export function AnalyzeButton({
         const cleaned = text
           .replace(/^```json\s*/g, "")
           .replace(/```/g, "")
-        lastText = cleaned
         setPartialText(cleaned)
       }
 

@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { auth } from "@/lib/auth"
 import { signOutUser } from "@/lib/actions"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { LayoutDashboard, Heart, LogOut, Brain, Sparkles } from "lucide-react"
+import { LayoutDashboard, Heart, Settings, LogOut, Brain, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export default async function DashboardLayout({
@@ -47,6 +47,10 @@ export default async function DashboardLayout({
           <Link href="/dashboard?tab=favorites" className={navLinkClass}>
             <Heart className="mr-2 h-4 w-4" />
             我的收藏
+          </Link>
+          <Link href="/dashboard/settings" className={navLinkClass}>
+            <Settings className="mr-2 h-4 w-4" />
+            设置
           </Link>
         </nav>
         <div className="border-t p-4">
@@ -129,6 +133,15 @@ export default async function DashboardLayout({
                   >
                     <Heart className="mr-2 h-4 w-4" />
                     我的收藏
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Link
+                    href="/dashboard/settings"
+                    className="flex items-center w-full"
+                  >
+                    <Settings className="mr-2 h-4 w-4" />
+                    设置
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />

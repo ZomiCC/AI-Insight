@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import { prisma } from "@/lib/db"
-import { discoverAIProjects, getRepoReadme } from "@/lib/github"
+import { discoverAIProjects, getRepoReadme, projectDataFromRepo } from "@/lib/github"
+import { requireUserId } from "@/lib/auth"
 import type { PaginatedResponse, ProjectListItem } from "@/types"
 
 export async function GET(request: NextRequest) {
@@ -89,6 +90,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  // Guard: discovery spends GitHub API quota, require login.
+  const userId = await requireUserId()
+  if (!userId) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
   const { action } = await request.json()
 
   if (action === "discover") {
@@ -113,21 +120,7 @@ export async function POST(request: NextRequest) {
         }
 
         await prisma.project.create({
-          data: {
-            githubId: repo.id,
-            name: repo.name,
-            fullName: repo.full_name,
-            description: repo.description,
-            stars: repo.stargazers_count,
-            forks: repo.forks_count,
-            language: repo.language,
-            topics: JSON.stringify(repo.topics || []),
-            license: repo.license?.spdx_id ?? null,
-            homepage: repo.homepage,
-            readme,
-            defaultBranch: repo.default_branch,
-            lastPushedAt: repo.pushed_at ? new Date(repo.pushed_at) : null,
-          },
+          data: { ...projectDataFromRepo(repo), readme },
         })
         added++
       }

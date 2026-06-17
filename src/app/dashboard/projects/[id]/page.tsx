@@ -15,7 +15,6 @@ import {
   GitFork,
   ExternalLink,
   ArrowLeft,
-  Heart,
   Sparkles,
   Calendar,
 } from "lucide-react"
@@ -146,7 +145,6 @@ async function ProjectDetail({ id }: { id: string }) {
             <ReportView
               key={report.id}
               report={report}
-              projectName={project.fullName}
             />
           ))}
         </div>

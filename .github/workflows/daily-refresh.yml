@@ -16,15 +16,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Refresh API
+        env:
+          # Set this in the repo's Settings → Secrets and variables → Actions.
+          # Must match the CRON_SECRET env var configured on Vercel.
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           echo "🔄 开始刷新 AI 项目数据..."
-          RESPONSE=$(curl -s -w "\n%{http_code}" https://github-ai-insight.vercel.app/api/cron/refresh)
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            https://github-ai-insight.vercel.app/api/cron/refresh)
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
           BODY=$(echo "$RESPONSE" | sed '$d')
           echo "HTTP Status: $HTTP_CODE"
           echo "Response: $BODY"
           if [ "$HTTP_CODE" != "200" ]; then
-            echo "❌ 刷新失败"
+            echo "❌ 刷新失败（如果是 401，请确认仓库 Secret CRON_SECRET 已正确配置）"
             exit 1
           fi
           echo "✅ 刷新成功"

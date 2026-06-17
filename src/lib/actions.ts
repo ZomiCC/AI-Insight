@@ -1,9 +1,12 @@
 "use server"
 
-import { auth, signIn, signOut } from "./auth"
+import { revalidatePath } from "next/cache"
+import { signIn, signOut, requireUserId } from "./auth"
 import { prisma } from "./db"
 import { analyzeProject } from "./analyzer"
-import { discoverAIProjects, getRepoReadme } from "./github"
+import { discoverAIProjects, getRepoReadme, projectDataFromRepo } from "./github"
+import { encrypt } from "./crypto"
+import { getUserApiKey } from "./userSettings"
 
 export async function signInWithGitHub() {
   await signIn("github", { redirectTo: "/dashboard" })
@@ -14,13 +17,13 @@ export async function signOutUser() {
 }
 
 export async function toggleFavorite(projectId: string) {
-  const session = await auth()
-  if (!session?.user?.id) return
+  const userId = await requireUserId()
+  if (!userId) return
 
   const existing = await prisma.favorite.findUnique({
     where: {
       userId_projectId: {
-        userId: session.user.id,
+        userId,
         projectId,
       },
     },
@@ -28,20 +31,26 @@ export async function toggleFavorite(projectId: string) {
 
   if (existing) {
     await prisma.favorite.deleteMany({
-      where: { userId: session.user.id, projectId },
+      where: { userId, projectId },
     })
   } else {
     await prisma.favorite.create({
-      data: { userId: session.user.id, projectId },
+      data: { userId, projectId },
     })
   }
 }
 
 export async function triggerAnalysis(projectId: string) {
-  await analyzeProject(projectId)
+  const userId = await requireUserId()
+  if (!userId) return
+  const apiKey = await getUserApiKey(userId)
+  await analyzeProject(projectId, apiKey)
 }
 
 export async function discoverProjects() {
+  const userId = await requireUserId()
+  if (!userId) return
+
   const repos = await discoverAIProjects(3)
   for (const repo of repos) {
     const existing = await prisma.project.findUnique({
@@ -59,22 +68,45 @@ export async function discoverProjects() {
         // noop
       }
       await prisma.project.create({
-        data: {
-          githubId: repo.id,
-          name: repo.name,
-          fullName: repo.full_name,
-          description: repo.description,
-          stars: repo.stargazers_count,
-          forks: repo.forks_count,
-          language: repo.language,
-          topics: JSON.stringify(repo.topics || []),
-          license: repo.license?.spdx_id ?? null,
-          homepage: repo.homepage,
-          readme,
-          defaultBranch: repo.default_branch,
-          lastPushedAt: repo.pushed_at ? new Date(repo.pushed_at) : null,
-        },
+        data: { ...projectDataFromRepo(repo), readme },
       })
     }
   }
+}
+
+export type SaveKeyResult = { ok: true } | { ok: false; error: string }
+
+/**
+ * Validate, encrypt and store the user's DeepSeek API key. Overwrites any
+ * previously configured key so the user can update it at any time.
+ */
+export async function saveDeepSeekApiKey(rawKey: string): Promise<SaveKeyResult> {
+  const userId = await requireUserId()
+  if (!userId) return { ok: false, error: "未登录" }
+
+  const key = rawKey.trim()
+  if (!key) return { ok: false, error: "API Key 不能为空" }
+  if (!key.startsWith("sk-")) {
+    return { ok: false, error: "DeepSeek API Key 通常以 sk- 开头，请检查后重试" }
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { deepseekApiKey: encrypt(key) },
+  })
+  revalidatePath("/dashboard/settings")
+  return { ok: true }
+}
+
+/**
+ * Remove the user's DeepSeek API key entirely.
+ */
+export async function deleteDeepSeekApiKey(): Promise<void> {
+  const userId = await requireUserId()
+  if (!userId) return
+  await prisma.user.update({
+    where: { id: userId },
+    data: { deepseekApiKey: null },
+  })
+  revalidatePath("/dashboard/settings")
 }

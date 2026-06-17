@@ -1,4 +1,6 @@
 import { analyzeProjectStream } from "@/lib/analyzer-stream"
+import { requireUserId } from "@/lib/auth"
+import { getUserApiKey } from "@/lib/userSettings"
 
 export const dynamic = "force-dynamic"
 
@@ -6,7 +8,14 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Guard: streaming analysis also spends DeepSeek quota.
+  const userId = await requireUserId()
+  if (!userId) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
   const { id } = await params
+  const apiKey = await getUserApiKey(userId)
 
   const encoder = new TextEncoder()
 
@@ -17,7 +26,7 @@ export async function GET(
       }
 
       try {
-        await analyzeProjectStream(id, (event) => {
+        await analyzeProjectStream(id, apiKey, (event) => {
           send(event)
         })
       } catch {

@@ -1,4 +1,5 @@
 import { prisma } from "./db"
+import { buildAnalysisPrompt, ANALYSIS_SYSTEM_PROMPT } from "./prompt"
 
 const DEEPSEEK_API = "https://api.deepseek.com/chat/completions"
 
@@ -20,6 +21,7 @@ interface StreamEvent {
 
 export async function analyzeProjectStream(
   projectId: string,
+  apiKey: string | null,
   onProgress: (event: StreamEvent) => void
 ): Promise<void> {
   const project = await prisma.project.findUnique({
@@ -31,50 +33,17 @@ export async function analyzeProjectStream(
     return
   }
 
-  const apiKey = process.env.DEEPSEEK_API_KEY
-  if (!apiKey || apiKey === "your_deepseek_api_key") {
-    onProgress({ phase: "error", progress: 0, message: "DeepSeek API Key 未配置" })
+  if (!apiKey) {
+    onProgress({ phase: "error", progress: 0, message: "未配置 DeepSeek API Key，请先到「设置」页面配置" })
     return
   }
 
   // Phase 1: Prepare
   onProgress({ phase: "connecting", progress: 5, message: "正在准备分析数据..." })
 
-  const readmePreview = project.readme
-    ? project.readme.slice(0, 12000)
-    : "（无 README 内容）"
+  const userPrompt = buildAnalysisPrompt(project)
 
-  const userPrompt = `你是一位世界级的 AI 技术架构师和技术作家。请对以下 GitHub 开源项目进行深度的、有洞察力的分析。
-
-## 项目基本信息
-
-- **项目名称**：${project.fullName}
-- **简介**：${project.description ?? "未提供"}
-- **Star 数**：${project.stars}
-- **主要语言**：${project.language ?? "未知"}
-- **标签**：${project.topics}
-
-## README
-
-${readmePreview}
-
----
-
-请进行以下维度的深度分析。输出严格的 JSON 格式：
-
-{
-  "summary": "用一句话精准概括这个项目的本质（不超过50字）",
-  "overview": "## 项目定位\\n\\n阐述项目在 AI 生态中的位置（2-3段）。\\n\\n## 竞品对比\\n\\n与 2-3 个同类项目逐一对比，每项列出核心功能差异、性能优劣、社区活跃度，最后用列表总结本项目的差异化优势。",
-  "architecture": "## 架构分层\\n\\n用以下格式详细描述系统分层架构（3-5层），每层说明职责和核心作用：\\n\\n**第N层：名称**\\n- 职责：...\\n- 核心作用：...\\n\\n## 核心数据流\\n\\n用以下格式详细描述数据流转（3-6步），每步说明输入→处理→输出和核心作用：\\n\\n**步骤N：名称**\\n上一步输出 → 经过什么处理 → 产生什么结果\\n- 核心作用：为什么这步必不可少\\n\\n## 模块组织\\n\\n描述代码目录结构和模块划分。\\n\\n## 设计模式\\n\\n分析关键设计模式及其应用。\\n\\n## 扩展机制\\n\\n描述插件/扩展体系。如果没有足够信息，基于对类似项目的了解进行合理推断。",
-  "keyTechs": ["技术点1", "技术点2", ...]（至少列出 5 个）,
-  "learningValue": "## 为什么值得学\\n\\n## 适合人群\\n\\n## 学习路线\\n\\n3-4 步实践路径\\n\\n## 职业价值",
-  "difficulty": "beginner / intermediate / advanced"
-}
-
-要求：中文，专业有深度。必须是合法 JSON，字符串中换行用 \\n，双引号用 \\"。keyTechs 至少 5 项。`
-
-  const systemPrompt =
-    "你是一个世界级的 AI 架构师和技术作家。请严格按要求的 JSON 格式输出。"
+  const systemPrompt = ANALYSIS_SYSTEM_PROMPT
 
   onProgress({ phase: "connecting", progress: 10, message: "正在连接 DeepSeek..." })
 
@@ -103,7 +72,6 @@ ${readmePreview}
     })
 
     if (!apiRes.ok) {
-      const body = await apiRes.text()
       onProgress({ phase: "error", progress: 0, message: `API 错误: ${apiRes.status}` })
       return
     }
@@ -207,11 +175,18 @@ function parseAnalysis(
   try {
     return JSON.parse(jsonStr)
   } catch {
+    let topics: string[] = []
+    try {
+      const parsed = JSON.parse(project.topics)
+      topics = Array.isArray(parsed) ? parsed : []
+    } catch {
+      topics = []
+    }
     return {
       summary: project.description?.slice(0, 50) ?? `${project.name} 是一个 AI 相关项目`,
       overview: `## 项目定位\n\n**${project.name}** 获得了 ${project.stars} Stars。`,
       architecture: null,
-      keyTechs: JSON.parse(project.topics || "[]"),
+      keyTechs: topics,
       learningValue: null,
       difficulty: "intermediate",
     }

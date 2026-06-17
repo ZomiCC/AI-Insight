@@ -190,7 +190,7 @@ AUTH_GITHUB_ID          # GitHub OAuth App Client ID
 AUTH_GITHUB_SECRET      # GitHub OAuth App Client Secret
 AUTH_SECRET             # Random string, `openssl rand -hex 32`
 AUTH_URL                # https://github-ai-insight.vercel.app (prod) or http://localhost:3000
-DEEPSEEK_API_KEY        # sk-...
+DEEPSEEK_API_KEY        # NOT used — each user configures their own key on /dashboard/settings (encrypted at rest)
 DATABASE_URL            # libsql://... (prod) or file:./dev.db (dev)
 ```
 

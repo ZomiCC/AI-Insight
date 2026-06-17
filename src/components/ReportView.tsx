@@ -5,25 +5,18 @@ import remarkGfm from "remark-gfm"
 import { Badge } from "@/components/ui/badge"
 import { MermaidRenderer } from "./MermaidRenderer"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
 import { formatDate } from "@/lib/utils"
 import type { ReportDetail } from "@/types"
 import {
-  Lightbulb,
-  BookOpen,
   Cpu,
   Target,
   Calendar,
-  GitBranch,
   Layers,
-  Zap,
   GraduationCap,
-  ArrowRight,
 } from "lucide-react"
 
 interface ReportViewProps {
   report: ReportDetail
-  projectName: string
 }
 
 const difficultyConfig: Record<string, { label: string; color: string; desc: string }> = {
@@ -44,7 +37,7 @@ const difficultyConfig: Record<string, { label: string; color: string; desc: str
   },
 }
 
-export function ReportView({ report, projectName }: ReportViewProps) {
+export function ReportView({ report }: ReportViewProps) {
   const diff = difficultyConfig[report.difficulty] ?? difficultyConfig.intermediate
 
   return (

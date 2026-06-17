@@ -1,16 +1,41 @@
+import type { NextRequest } from "next/server"
 import { prisma } from "@/lib/db"
-import { discoverAIProjects, getRepoReadme } from "@/lib/github"
-import { analyzeProject } from "@/lib/analyzer"
+import { discoverAIProjects, getRepoReadme, projectDataFromRepo } from "@/lib/github"
+import { auth } from "@/lib/auth"
 
-export async function GET() {
+/**
+ * A cron run is authorized if EITHER:
+ *   - it carries the shared CRON_SECRET (Vercel Cron / GitHub Actions), OR
+ *   - it is made by a logged-in user (the dashboard "刷新数据" button).
+ * With no CRON_SECRET configured, only logged-in users may trigger it.
+ *
+ * Note: cron only DISCOVERS new projects. AI analysis is not done here because
+ * DeepSeek API keys are now per-user (configured on /dashboard/settings) and a
+ * cron run has no user context. Users trigger analysis manually on each
+ * project page with their own key.
+ */
+function isAuthorizedBySecret(request: NextRequest): boolean {
+  const secret = process.env.CRON_SECRET
+  if (!secret) return false
+  const authHeader = request.headers.get("authorization")
+  if (authHeader === `Bearer ${secret}`) return true
+  if (request.nextUrl.searchParams.get("secret") === secret) return true
+  return false
+}
+
+export async function GET(request: NextRequest) {
+  const session = await auth()
+  const isUser = !!session?.user?.id
+  if (!isUser && !isAuthorizedBySecret(request)) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
   const results = {
     discovered: 0,
-    analyzed: 0,
     errors: [] as string[],
   }
 
   try {
-    // Step 1: Discover new projects
     const repos = await discoverAIProjects(3)
 
     for (const repo of repos) {
@@ -30,48 +55,14 @@ export async function GET() {
         }
 
         await prisma.project.create({
-          data: {
-            githubId: repo.id,
-            name: repo.name,
-            fullName: repo.full_name,
-            description: repo.description,
-            stars: repo.stargazers_count,
-            forks: repo.forks_count,
-            language: repo.language,
-            topics: JSON.stringify(repo.topics || []),
-            license: repo.license?.spdx_id ?? null,
-            homepage: repo.homepage,
-            readme,
-            defaultBranch: repo.default_branch,
-            lastPushedAt: repo.pushed_at ? new Date(repo.pushed_at) : null,
-          },
+          data: { ...projectDataFromRepo(repo), readme },
         })
         results.discovered++
       }
     }
 
-    // Step 2: Analyze projects without reports
-    const unanalyzed = await prisma.project.findMany({
-      where: {
-        reports: { none: {} },
-        readme: { not: null },
-      },
-      take: 5,
-    })
-
-    for (const project of unanalyzed) {
-      try {
-        await analyzeProject(project.id)
-        results.analyzed++
-        // Rate limit protection
-        await new Promise((r) => setTimeout(r, 2000))
-      } catch (e) {
-        results.errors.push(`${project.fullName}: ${String(e)}`)
-      }
-    }
-
     return Response.json({
-      message: `刷新完成：发现 ${results.discovered} 个新项目，分析 ${results.analyzed} 个项目`,
+      message: `刷新完成：发现 ${results.discovered} 个新项目（AI 分析请在项目页用你自己的 Key 手动触发）`,
       ...results,
     })
   } catch (error) {

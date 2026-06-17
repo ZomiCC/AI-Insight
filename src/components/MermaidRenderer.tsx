@@ -1,7 +1,6 @@
-// @ts-nocheck
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useId, useRef, useState } from "react"
 
 let initialized = false
 
@@ -57,7 +56,10 @@ export function MermaidRenderer({ chart }: { chart: string }) {
   const [svg, setSvg] = useState<string | null>(null)
   const [error, setError] = useState(false)
   const [expanded, setExpanded] = useState(false)
-  const idRef = useRef(`mermaid-${Math.random().toString(36).slice(2, 9)}`)
+  // useId is deterministic across SSR/CSR and avoids the React 19 purity rule
+  // that forbids Math.random() during render.
+  const reactId = useId()
+  const idRef = useRef(`mermaid-${reactId.replace(/:/g, "")}`)
 
   useEffect(() => {
     let cancelled = false

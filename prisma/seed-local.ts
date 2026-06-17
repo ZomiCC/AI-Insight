@@ -321,28 +321,7 @@ async function main() {
 
   console.log(`\n📊 完成! 新增 ${added} 个项目。`)
   console.log("💡 现在可以访问 /dashboard 查看项目列表。")
-
-  // Also generate AI analysis for the projects
-  if (process.env.DEEPSEEK_API_KEY && process.env.DEEPSEEK_API_KEY !== "your_deepseek_api_key") {
-    console.log("\n🤖 正在用 DeepSeek 生成分析报告...")
-    const { analyzeProject } = await import("../src/lib/analyzer")
-    const allProjects = await prisma.project.findMany({
-      where: { reports: { none: {} } },
-      take: 3,
-    })
-    for (const p of allProjects) {
-      try {
-        console.log(`  分析 ${p.fullName}...`)
-        await analyzeProject(p.id)
-        console.log(`  ✅ ${p.fullName} 分析完成`)
-        await new Promise((r) => setTimeout(r, 1000))
-      } catch (e) {
-        console.error(`  ❌ ${p.fullName} 分析失败:`, e)
-      }
-    }
-  } else {
-    console.log("\n💡 配置 DEEPSEEK_API_KEY 后，可自动生成 AI 分析报告。")
-  }
+  console.log("💡 登录后在「设置」页配置你自己的 DeepSeek API Key，再到项目页点「AI 分析」即可生成报告。")
 
   await prisma.$disconnect()
 }
