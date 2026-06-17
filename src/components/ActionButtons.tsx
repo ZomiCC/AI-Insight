@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
-import { Heart, Sparkles, CheckCircle, XCircle, Loader2 } from "lucide-react"
+import { Heart, Sparkles, XCircle, Loader2 } from "lucide-react"
 import { toggleFavorite } from "@/lib/actions"
 
 function SubmitButton({
@@ -129,22 +129,14 @@ export function AnalyzeButton({
     }
   }
 
+  // Already analyzed: offer a compact "re-analyze" button (used next to the
+  // report heading on the project detail page).
   if (status === "success") {
     return (
-      <div className="flex items-center gap-2">
-        <span className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800">
-          <CheckCircle className="h-4 w-4" />
-          分析完成，报告已加载
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => handleAnalyze()}
-        >
-          <Sparkles className="mr-1.5 h-4 w-4" />
-          重新分析
-        </Button>
-      </div>
+      <Button variant="outline" size="sm" onClick={() => handleAnalyze()}>
+        <Sparkles className="mr-1.5 h-4 w-4" />
+        重新分析
+      </Button>
     )
   }
 

@@ -137,10 +137,13 @@ async function ProjectDetail({ id }: { id: string }) {
       {/* AI Analysis Reports */}
       {reports.length > 0 ? (
         <div className="space-y-6">
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            AI 分析报告
-          </h2>
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              AI 分析报告
+            </h2>
+            <AnalyzeButton projectId={id} hasReport={true} />
+          </div>
           {reports.map((report) => (
             <ReportView
               key={report.id}
