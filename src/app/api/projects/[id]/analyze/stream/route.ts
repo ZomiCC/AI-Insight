@@ -26,7 +26,7 @@ export async function GET(
       }
 
       try {
-        await analyzeProjectStream(id, apiKey, (event) => {
+        await analyzeProjectStream(id, userId, apiKey, (event) => {
           send(event)
         })
       } catch {

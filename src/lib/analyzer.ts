@@ -72,6 +72,7 @@ function safeParseTopics(topics: string | null | undefined): string[] {
 
 export async function analyzeProject(
   projectId: string,
+  userId: string,
   apiKey: string | null
 ): Promise<AnalysisResult> {
   const project = await prisma.project.findUnique({
@@ -95,11 +96,13 @@ export async function analyzeProject(
       difficulty: "intermediate",
     }
 
-    // Maintain the "one report per project" invariant — replace any prior report.
-    await prisma.report.deleteMany({ where: { projectId: project.id } })
+    // Maintain the "one report per project per user" invariant — replace any
+    // prior report by this user for this project.
+    await prisma.report.deleteMany({ where: { projectId: project.id, userId } })
     await prisma.report.create({
       data: {
         projectId: project.id,
+        userId,
         summary: fallback.summary,
         overview: fallback.overview,
         architecture: fallback.architecture,
@@ -134,7 +137,7 @@ export async function analyzeProject(
       learningValue: null,
       difficulty: "intermediate",
     }
-    await saveReport(project.id, fallback, text)
+    await saveReport(project.id, userId, fallback, text)
     return fallback
   }
 
@@ -169,21 +172,23 @@ export async function analyzeProject(
   }
 
   // Save to database
-  await saveReport(project.id, analysis, text)
+  await saveReport(project.id, userId, analysis, text)
   return analysis
 }
 
 async function saveReport(
   projectId: string,
+  userId: string,
   analysis: AnalysisResult,
   rawResponse: string
 ) {
-  // Delete old reports for this project
-  await prisma.report.deleteMany({ where: { projectId } })
+  // Delete old reports for this project by this user
+  await prisma.report.deleteMany({ where: { projectId, userId } })
 
   await prisma.report.create({
     data: {
       projectId,
+      userId,
       summary: analysis.summary,
       overview: analysis.overview,
       architecture: analysis.architecture,

@@ -21,6 +21,7 @@ interface StreamEvent {
 
 export async function analyzeProjectStream(
   projectId: string,
+  userId: string,
   apiKey: string | null,
   onProgress: (event: StreamEvent) => void
 ): Promise<void> {
@@ -134,11 +135,12 @@ export async function analyzeProjectStream(
 
   onProgress({ phase: "saving", progress: 96, message: "正在保存到数据库..." })
 
-  // Delete old reports and save new
-  await prisma.report.deleteMany({ where: { projectId } })
+  // Delete old reports by this user for this project and save new
+  await prisma.report.deleteMany({ where: { projectId, userId } })
   await prisma.report.create({
     data: {
       projectId,
+      userId,
       summary: analysis.summary,
       overview: analysis.overview,
       architecture: analysis.architecture,

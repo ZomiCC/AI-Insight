@@ -57,6 +57,7 @@ async function ProjectList({
   searchParams: Record<string, string>
 }) {
   const session = await auth()
+  const userId = session?.user?.id ?? null
   const page = Math.max(1, parseInt(searchParams.page ?? "1"))
   const pageSize = 20
   const language = searchParams.language
@@ -75,7 +76,7 @@ async function ProjectList({
     ]
   }
   if (difficulty) {
-    where.reports = { some: { difficulty } }
+    where.reports = { some: { difficulty, userId: userId ?? "__none__" } }
   }
   if (tab === "favorites" && session?.user?.id) {
     where.favorites = { some: { userId: session.user.id } }
@@ -86,6 +87,8 @@ async function ProjectList({
       where,
       include: {
         reports: {
+          // 报告按用户独立：只查当前登录用户的报告。
+          where: { userId: userId ?? "__none__" },
           select: {
             id: true,
             summary: true,

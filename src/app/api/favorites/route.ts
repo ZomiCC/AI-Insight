@@ -14,6 +14,7 @@ export async function GET() {
       project: {
         include: {
           reports: {
+            where: { userId: session.user.id },
             select: { id: true, summary: true, difficulty: true, generatedAt: true },
             orderBy: { generatedAt: "desc" },
             take: 1,

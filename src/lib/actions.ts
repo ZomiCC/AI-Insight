@@ -44,7 +44,7 @@ export async function triggerAnalysis(projectId: string) {
   const userId = await requireUserId()
   if (!userId) return
   const apiKey = await getUserApiKey(userId)
-  await analyzeProject(projectId, apiKey)
+  await analyzeProject(projectId, userId, apiKey)
 }
 
 export async function discoverProjects() {

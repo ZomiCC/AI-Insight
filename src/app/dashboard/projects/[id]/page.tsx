@@ -23,11 +23,14 @@ import type { ReportDetail } from "@/types"
 
 async function ProjectDetail({ id }: { id: string }) {
   const session = await auth()
+  const userId = session?.user?.id ?? null
 
   const project = await prisma.project.findUnique({
     where: { id },
     include: {
       reports: {
+        // 报告按用户独立：只查当前登录用户的报告。
+        where: { userId: userId ?? "__none__" },
         orderBy: { generatedAt: "desc" },
       },
     },

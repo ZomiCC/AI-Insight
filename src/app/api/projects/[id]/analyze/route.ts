@@ -16,7 +16,7 @@ export async function POST(
   const apiKey = await getUserApiKey(userId)
 
   try {
-    const report = await analyzeProject(id, apiKey)
+    const report = await analyzeProject(id, userId, apiKey)
     return Response.json({ success: true, report })
   } catch (error) {
     console.error("Analysis failed:", error)

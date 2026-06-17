@@ -13,6 +13,10 @@ export async function GET(request: NextRequest) {
   const query = searchParams.get("query")
   const minStars = parseInt(searchParams.get("minStars") ?? "0")
 
+  // 报告按用户独立：未登录用户拿不到任何报告。
+  const userId = await requireUserId()
+  const reportUserId = userId ?? "__none__"
+
   const where: Record<string, unknown> = {}
 
   if (language) {
@@ -30,7 +34,7 @@ export async function GET(request: NextRequest) {
   }
   if (difficulty) {
     where.reports = {
-      some: { difficulty },
+      some: { difficulty, userId: reportUserId },
     }
   }
 
@@ -39,6 +43,7 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         reports: {
+          where: { userId: reportUserId },
           select: { id: true, summary: true, difficulty: true, generatedAt: true },
           orderBy: { generatedAt: "desc" },
           take: 1,

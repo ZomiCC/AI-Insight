@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db"
+import { requireUserId } from "@/lib/auth"
 import type { ProjectDetail } from "@/types"
 
 export async function GET(
@@ -7,10 +8,14 @@ export async function GET(
 ) {
   const { id } = await params
 
+  // 报告按用户独立：未登录用户拿不到任何报告。
+  const userId = await requireUserId()
+
   const project = await prisma.project.findUnique({
     where: { id },
     include: {
       reports: {
+        where: { userId: userId ?? "__none__" },
         orderBy: { generatedAt: "desc" },
       },
     },

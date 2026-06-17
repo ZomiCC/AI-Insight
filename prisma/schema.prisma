@@ -16,6 +16,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   favorites     Favorite[]
+  reports       Report[]
   // AES-256-GCM ciphertext of the user-configured DeepSeek API key (see lib/crypto.ts).
   // null until the user configures one on /dashboard/settings.
   deepseekApiKey String?
@@ -81,7 +82,11 @@ model Project {
 model Report {
   id            String   @id @default(cuid())
   projectId     String
+  // 报告归属的用户。null = 迁移前的历史/预置报告（对普通用户隐藏）。
+  // 每用户每项目只保留一份，靠 saveReport 的 deleteMany({ projectId, userId }) 维持。
+  userId        String?
   project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user          User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   summary       String
   overview      String
   architecture  String?
