@@ -1,5 +1,6 @@
 import { prisma } from "./db"
 import { buildAnalysisPrompt } from "./prompt"
+import { parseIllustrationsPlan } from "./xiaohei"
 
 const DEEPSEEK_API = "https://api.deepseek.com/chat/completions"
 
@@ -16,6 +17,7 @@ interface StreamEvent {
     keyTechs: string[]
     learningValue: string | null
     difficulty: string
+    illustrationsPlan: unknown[]
   }
 }
 
@@ -146,6 +148,7 @@ export async function analyzeProjectStream(
       keyTechs: JSON.stringify(analysis.keyTechs),
       learningValue: analysis.learningValue,
       difficulty: analysis.difficulty,
+      illustrationsPlan: JSON.stringify(analysis.illustrationsPlan ?? []),
       rawResponse: fullText,
     },
   })
@@ -174,7 +177,16 @@ function parseAnalysis(
   jsonStr = jsonStr.trim()
 
   try {
-    return JSON.parse(jsonStr)
+    const parsed = JSON.parse(jsonStr) as Record<string, unknown>
+    return {
+      summary: String(parsed.summary ?? ""),
+      overview: String(parsed.overview ?? ""),
+      architecture: parsed.architecture ? String(parsed.architecture) : null,
+      keyTechs: Array.isArray(parsed.keyTechs) ? (parsed.keyTechs as string[]) : [],
+      learningValue: parsed.learningValue ? String(parsed.learningValue) : null,
+      difficulty: parsed.difficulty ? String(parsed.difficulty) : "intermediate",
+      illustrationsPlan: parseIllustrationsPlan(parsed.illustrations),
+    }
   } catch {
     let topics: string[] = []
     try {
@@ -190,6 +202,7 @@ function parseAnalysis(
       keyTechs: topics,
       learningValue: null,
       difficulty: "intermediate",
+      illustrationsPlan: [],
     }
   }
 }

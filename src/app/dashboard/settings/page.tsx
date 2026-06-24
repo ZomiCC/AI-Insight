@@ -2,10 +2,12 @@ import Link from "next/link"
 import { auth } from "@/lib/auth"
 import {
   getUserApiKeyMasked,
+  getUserAgnesKeyMasked,
   getUserCustomPrompt,
   getUserDiscoverKeywords,
 } from "@/lib/userSettings"
 import { DeepSeekKeyForm } from "@/components/DeepSeekKeyForm"
+import { AgnesKeyForm } from "@/components/AgnesKeyForm"
 import { DiscoverKeywordsForm } from "@/components/DiscoverKeywordsForm"
 import { CustomPromptForm } from "@/components/CustomPromptForm"
 import {
@@ -20,13 +22,14 @@ import { KeyRound, ExternalLink, ShieldCheck, Compass, Sparkles } from "lucide-r
 export default async function SettingsPage() {
   const session = await auth()
   const userId = session?.user?.id ?? null
-  const [maskedKey, keywords, customPrompt] = userId
+  const [maskedKey, maskedAgnesKey, keywords, customPrompt] = userId
     ? await Promise.all([
         getUserApiKeyMasked(userId),
+        getUserAgnesKeyMasked(userId),
         getUserDiscoverKeywords(userId),
         getUserCustomPrompt(userId),
       ])
-    : [null, null, null]
+    : [null, null, null, null]
 
   return (
     <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-6">
@@ -41,6 +44,8 @@ export default async function SettingsPage() {
       </div>
 
       <DeepSeekKeyForm currentKeyMasked={maskedKey} />
+
+      <AgnesKeyForm currentKeyMasked={maskedAgnesKey} />
 
       <section className="space-y-4">
         <h2 className="text-lg font-semibold flex items-center gap-2">

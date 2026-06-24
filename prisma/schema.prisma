@@ -26,6 +26,10 @@ model User {
   // 用户自定义的分析提示词（明文）。null 时仅用内置系统提示词。
   // 分析时会拼接到 ANALYSIS_SYSTEM_PROMPT 之后。
   customPrompt String?
+  // AES-256-GCM ciphertext of the user-configured Agnes (image) API key.
+  // null until configured. 加密方式与 deepseekApiKey 相同（见 lib/crypto.ts）。
+  // 用于生成「小黑」正文配图；每用户自配，平台零成本。
+  agnesApiKey String?
   createdAt     DateTime  @default(now())
 }
 
@@ -100,6 +104,12 @@ model Report {
   learningValue String?
   difficulty    String   @default("intermediate")
   rawResponse   String?
+  // DeepSeek 产出的「小黑」配图脚本 JSON 数组（每项见 IllustrationPlan）。
+  // null = 老报告或未启用配图。前端据此逐张调 Agnes 生成。
+  illustrationsPlan String?
+  // 已生成的配图 JSON 数组（每项见 IllustrationItem，按 index 对应 illustrationsPlan）。
+  // 每项含 base64（PNG，自包含、不过期）。逐张异步填充。
+  illustrations     String?
   generatedAt   DateTime @default(now())
 }
 

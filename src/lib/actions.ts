@@ -6,7 +6,10 @@ import { prisma } from "./db"
 import { analyzeProject } from "./analyzer"
 import { discoverAIProjects, getRepoReadme, projectDataFromRepo } from "./github"
 import { encrypt } from "./crypto"
-import { getUserApiKey, getEffectiveSystemPrompt, getUserDiscoverKeywords } from "./userSettings"
+import { getUserApiKey, getEffectiveSystemPrompt, getUserDiscoverKeywords, getUserAgnesKey } from "./userSettings"
+import { generateXiaoheiImage } from "./agnes"
+import { buildImagePrompt } from "./xiaohei"
+import type { IllustrationItem } from "@/types"
 
 export async function signInWithGitHub() {
   await signIn("github", { redirectTo: "/dashboard" })
@@ -158,4 +161,118 @@ export async function saveCustomPrompt(raw: string): Promise<SaveKeyResult> {
   })
   revalidatePath("/dashboard/settings")
   return { ok: true }
+}
+
+/**
+ * Validate, encrypt and store the user's Agnes (image) API key. Same flow as
+ * saveDeepSeekApiKey — overwrites any prior key so it can be updated anytime.
+ */
+export async function saveAgnesApiKey(rawKey: string): Promise<SaveKeyResult> {
+  const userId = await requireUserId()
+  if (!userId) return { ok: false, error: "未登录" }
+
+  const key = rawKey.trim()
+  if (!key) return { ok: false, error: "API Key 不能为空" }
+  if (!key.startsWith("sk-")) {
+    return { ok: false, error: "Agnes API Key 通常以 sk- 开头，请检查后重试" }
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { agnesApiKey: encrypt(key) },
+  })
+  revalidatePath("/dashboard/settings")
+  return { ok: true }
+}
+
+/**
+ * Remove the user's Agnes API key entirely.
+ */
+export async function deleteAgnesApiKey(): Promise<void> {
+  const userId = await requireUserId()
+  if (!userId) return
+  await prisma.user.update({
+    where: { id: userId },
+    data: { agnesApiKey: null },
+  })
+  revalidatePath("/dashboard/settings")
+}
+
+/** 单张配图生成的返回。base64 为纯 base64（无 data: 前缀）。 */
+export type GenerateIllustrationResult =
+  | { ok: true; base64: string }
+  | { ok: false; error: string }
+
+/**
+ * 为某条报告的某张配图调用 Agnes 生成 PNG，并按 index 合并存入 report.illustrations。
+ * 前端逐张调用（每张一个 HTTP 请求），规避 Vercel 60s 超时；单张失败可重试。
+ *
+ * 合并策略：读取现有 illustrations（JSON），替换/插入对应 index，整体写回。
+ * 并发同一 index 时以最后一次为准，幂等。
+ */
+export async function generateIllustration(
+  reportId: string,
+  index: number
+): Promise<GenerateIllustrationResult> {
+  const userId = await requireUserId()
+  if (!userId) return { ok: false, error: "未登录" }
+
+  const report = await prisma.report.findUnique({ where: { id: reportId } })
+  // 报告按用户独立：不是本人的报告一律拒绝。
+  if (!report || !report.userId || report.userId !== userId) {
+    return { ok: false, error: "报告不存在" }
+  }
+
+  const plan = (() => {
+    try {
+      const arr = JSON.parse(report.illustrationsPlan ?? "[]")
+      return Array.isArray(arr) ? arr : []
+    } catch {
+      return []
+    }
+  })()
+  if (index < 0 || index >= plan.length) {
+    return { ok: false, error: "配图序号无效" }
+  }
+
+  const agnesKey = await getUserAgnesKey(userId)
+  if (!agnesKey) {
+    return { ok: false, error: "请先在「设置」页配置 Agnes API Key" }
+  }
+
+  let base64: string
+  try {
+    const prompt = buildImagePrompt(plan[index])
+    const result = await generateXiaoheiImage(prompt, agnesKey)
+    base64 = result.base64
+  } catch (e) {
+    console.error("Agnes image generation failed:", e)
+    const status = (e as { status?: number }).status
+    const hint =
+      status === 401
+        ? "Agnes API Key 无效或已过期"
+        : status === 429
+          ? "调用过于频繁，请稍后重试"
+          : "图像生成失败，请稍后重试"
+    return { ok: false, error: hint }
+  }
+
+  // 合并写入对应 index。读-改-写：同一 index 并发以最后一次为准。
+  const existing: IllustrationItem[] = (() => {
+    try {
+      const arr = JSON.parse(report.illustrations ?? "[]")
+      return Array.isArray(arr) ? arr : []
+    } catch {
+      return []
+    }
+  })()
+  const next = existing.filter((it) => it.index !== index)
+  next.push({ index, topic: plan[index].topic ?? "", base64 })
+
+  await prisma.report.update({
+    where: { id: reportId },
+    data: { illustrations: JSON.stringify(next) },
+  })
+
+  return { ok: true, base64 }
 }

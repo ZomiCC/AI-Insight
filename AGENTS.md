@@ -24,6 +24,7 @@
 | ORM | Prisma | 7.8.0 + @prisma/adapter-libsql |
 | Auth | NextAuth (Auth.js) | 5.0.0-beta.31 |
 | AI | DeepSeek API (OpenAI-compatible) | deepseek-chat |
+| Image | Agnes API (OpenAI-compatible, free) | agnes-image-2.1-flash |
 | UI | Tailwind CSS + shadcn/ui | v4 + v4.11 (base-ui, NOT radix) |
 | Diagrams | Mermaid (fallback only, not primary) | latest |
 | Deployment | Vercel | Hobby plan |
@@ -155,6 +156,15 @@ npm run seed          # Populate with 8 demo projects + DeepSeek analysis
 - Streaming: `stream: true` + SSE
 - Cost: ~¥0.01 per analysis
 
+### Agnes 图像 API（小黑配图）
+- DeepSeek 是纯文本模型，画不了图；「小黑」手绘配图由 Agnes 出图（`lib/agnes.ts`）。
+- Endpoint: `https://apihub.agnes-ai.com/v1/images/generations`（注意是 `apihub` 子域名；`api.agnes-ai.com` 返回 404 route not found，已实测）
+- Model: `agnes-image-2.1-flash`，`size:"1K"` / `ratio:"16:9"`（正好匹配小黑横版）
+- Key: 每用户自配（`User.agnesApiKey`，AES-256-GCM 加密，同 DeepSeek key 模式）
+- 配图脚本（shot list）由 DeepSeek 在分析时顺带产出（`Report.illustrationsPlan`），「画什么」交给 DeepSeek，「怎么画」的视觉风格固定注入（`lib/xiaohei.ts`，方法源自 ian-xiaohei-illustrations skill）
+- 生成的 PNG 转 base64 存进 `Report.illustrations`（自包含、不过期）
+- **逐张异步生成**：前端 `IllustrationGrid` 每张一个 server action 请求（`generateIllustration`），规避 60s 超时；单张失败可重试
+
 ---
 
 ## UI Patterns
@@ -224,3 +234,6 @@ npx vercel --prod --yes  # Deploy to production
 4. **Prisma client import**: `@/generated/prisma/client` (NOT `@prisma/client`)
 5. **Don't change the analysis prompt lightly** — it's tuned for DeepSeek's Chinese output quality
 6. **SSE on Vercel**: Edge functions don't support streaming; must use Node runtime (default for API routes)
+7. **配图逐张生成，不要在单次请求里串多张** — Agnes 出图 ~10s/张，4 张以上必超 60s。`IllustrationGrid` 已是每张一个 server action 请求，别改成循环同步生成。
+8. **Agnes 中文标注易出错字/幻觉标签** — `lib/xiaohei.ts` 已限制每张 ≤5 个标注词、强调风格 DNA；不达标时单张「重试」即可，不影响其它张。
+9. **重新分析会清空已生成配图** — `saveReport` 的 `deleteMany` 会连 `illustrations` 一起清，因为新报告的 shot list 变了、旧图不再匹配。这是有意为之。

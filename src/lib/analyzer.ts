@@ -1,5 +1,7 @@
 import { prisma } from "./db"
 import { buildAnalysisPrompt, ANALYSIS_SYSTEM_PROMPT, ANALYSIS_SYSTEM_PROMPT_STRICT } from "./prompt"
+import { parseIllustrationsPlan } from "./xiaohei"
+import type { IllustrationPlan } from "@/types"
 
 const DEEPSEEK_API = "https://api.deepseek.com/chat/completions"
 
@@ -10,6 +12,8 @@ interface AnalysisResult {
   keyTechs: string[]
   learningValue: string | null
   difficulty: string
+  /** DeepSeek 产出的「小黑」配图脚本。空数组 = 未生成/不可用。 */
+  illustrationsPlan: IllustrationPlan[]
 }
 
 async function callDeepSeek(
@@ -53,7 +57,18 @@ function parseJson(text: string): AnalysisResult | null {
   jsonStr = jsonStr.trim()
 
   try {
-    return JSON.parse(jsonStr) as AnalysisResult
+    const parsed = JSON.parse(jsonStr) as Record<string, unknown>
+    // 防御性规范化：保证 illustrationsPlan 一定存在且合法。
+    // 注意：DeepSeek 输出的字段名是 illustrations，这里解析成 illustrationsPlan。
+    return {
+      summary: String(parsed.summary ?? ""),
+      overview: String(parsed.overview ?? ""),
+      architecture: parsed.architecture ? String(parsed.architecture) : null,
+      keyTechs: Array.isArray(parsed.keyTechs) ? (parsed.keyTechs as string[]) : [],
+      learningValue: parsed.learningValue ? String(parsed.learningValue) : null,
+      difficulty: parsed.difficulty ? String(parsed.difficulty) : "intermediate",
+      illustrationsPlan: parseIllustrationsPlan(parsed.illustrations),
+    }
   } catch {
     return null
   }
@@ -95,6 +110,7 @@ export async function analyzeProject(
       learningValue:
         "在设置页配置 DeepSeek API Key 后，AI 将为每个项目生成深度的学习建议。",
       difficulty: "intermediate",
+      illustrationsPlan: [],
     }
 
     // Maintain the "one report per project per user" invariant — replace any
@@ -110,6 +126,7 @@ export async function analyzeProject(
         keyTechs: JSON.stringify(fallback.keyTechs),
         learningValue: fallback.learningValue,
         difficulty: fallback.difficulty,
+        illustrationsPlan: JSON.stringify(fallback.illustrationsPlan),
       },
     })
 
@@ -137,6 +154,7 @@ export async function analyzeProject(
       keyTechs: safeParseTopics(project.topics),
       learningValue: null,
       difficulty: "intermediate",
+      illustrationsPlan: [],
     }
     await saveReport(project.id, userId, fallback, text)
     return fallback
@@ -169,6 +187,7 @@ export async function analyzeProject(
       keyTechs: safeParseTopics(project.topics),
       learningValue: null,
       difficulty: "intermediate",
+      illustrationsPlan: [],
     }
   }
 
@@ -196,6 +215,9 @@ async function saveReport(
       keyTechs: JSON.stringify(analysis.keyTechs),
       learningValue: analysis.learningValue,
       difficulty: analysis.difficulty,
+      // 配图脚本随报告一起存；已生成的 illustrations 在重新分析时由 deleteMany 清空
+      //（新报告的脚本可能不同，旧图不再匹配，需重新逐张生成）。
+      illustrationsPlan: JSON.stringify(analysis.illustrationsPlan ?? []),
       rawResponse,
     },
   })

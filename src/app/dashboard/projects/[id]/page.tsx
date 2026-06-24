@@ -21,6 +21,17 @@ import {
 import { formatNumber, formatDate } from "@/lib/utils"
 import type { ReportDetail } from "@/types"
 
+/** 防御性解析 JSON 列；坏数据回退空数组，避免单条坏记录让整页 500。 */
+function safeParseArray<T = unknown>(raw: string | null): T[] {
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? (parsed as T[]) : []
+  } catch {
+    return []
+  }
+}
+
 async function ProjectDetail({ id }: { id: string }) {
   const session = await auth()
   const userId = session?.user?.id ?? null
@@ -61,6 +72,8 @@ async function ProjectDetail({ id }: { id: string }) {
     learningValue: r.learningValue,
     difficulty: r.difficulty,
     generatedAt: r.generatedAt.toISOString(),
+    illustrationsPlan: safeParseArray(r.illustrationsPlan),
+    illustrations: safeParseArray(r.illustrations),
   }))
 
   return (

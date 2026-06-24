@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { Badge } from "@/components/ui/badge"
 import { MermaidRenderer } from "./MermaidRenderer"
+import { IllustrationGrid } from "./IllustrationGrid"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatDate } from "@/lib/utils"
 import type { ReportDetail } from "@/types"
@@ -13,6 +14,7 @@ import {
   Calendar,
   Layers,
   GraduationCap,
+  PenTool,
 } from "lucide-react"
 
 interface ReportViewProps {
@@ -87,6 +89,21 @@ export function ReportView({ report }: ReportViewProps) {
               </Badge>
             ))}
           </div>
+        </SectionCard>
+      )}
+
+      {/* 小黑概念配图：DeepSeek 已给出 shot list，前端自动逐张调 Agnes 生成。 */}
+      {report.illustrationsPlan && report.illustrationsPlan.length > 0 && (
+        <SectionCard icon={<PenTool className="h-5 w-5" />} title="核心概念配图 · 小黑">
+          <p className="mb-4 text-xs text-muted-foreground">
+            把这份报告里最有记忆点的判断、数据流和隐喻，画成一张张白底手绘的「小黑」配图。
+            配图自动逐张生成，约 10 秒一张。
+          </p>
+          <IllustrationGrid
+            reportId={report.id}
+            plan={report.illustrationsPlan}
+            initial={report.illustrations ?? []}
+          />
         </SectionCard>
       )}
 

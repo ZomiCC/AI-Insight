@@ -45,6 +45,36 @@ export function maskApiKey(key: string): string {
 }
 
 /**
+ * Returns the decrypted Agnes (image) API key for a user, or null if not
+ * configured. Mirrors getUserApiKey — same encryption, same server-only decrypt.
+ */
+export async function getUserAgnesKey(userId: string): Promise<string | null> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { agnesApiKey: true },
+  })
+  if (!user?.agnesApiKey) return null
+  try {
+    return decrypt(user.agnesApiKey)
+  } catch (e) {
+    console.error("Failed to decrypt Agnes API key:", e)
+    return null
+  }
+}
+
+/**
+ * Masked preview of the Agnes key for the settings page, or null. Mirrors
+ * getUserApiKeyMasked — never returns the full key.
+ */
+export async function getUserAgnesKeyMasked(
+  userId: string
+): Promise<string | null> {
+  const key = await getUserAgnesKey(userId)
+  if (!key) return null
+  return maskApiKey(key)
+}
+
+/**
  * Returns the user's custom analysis prompt, or null if none configured.
  * This is appended to the built-in system prompt at analysis time so users
  * can steer the AI's focus (e.g. "重点分析 RAG 相关实现").
